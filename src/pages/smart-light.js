@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
 import { renderDeviceTable } from '../lib/device-manager.js';
+import { showNotification } from '../lib/utils.js';
 
 export async function renderSmartLightDashboard(project) {
   const app = document.getElementById('app');
@@ -13,6 +14,17 @@ export async function renderSmartLightDashboard(project) {
     .from('sl_samples')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', project.project_id);
+
+  let latestModel = null;
+  if (project.ml_enabled) {
+    const { data: models } = await supabase
+      .from('ml_models')
+      .select('*')
+      .eq('project_id', project.project_id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    latestModel = models && models.length > 0 ? models[0] : null;
+  }
 
   app.innerHTML = `
     <div class="navbar">
@@ -31,7 +43,13 @@ export async function renderSmartLightDashboard(project) {
       <div class="actions" style="margin-bottom: 1.5rem;">
         <button class="btn btn-secondary" onclick="window.router.navigate('/projects')">← Back to Projects</button>
         <button class="btn btn-primary" onclick="window.router.navigate('/project/telemetry?id=${project.project_id}')">View All Telemetry</button>
-        ${project.ml_enabled ? `<button class="btn btn-success" onclick="window.router.navigate('/project/ml-script?id=${project.project_id}')">ML Script Editor</button>` : ''}
+        ${project.ml_enabled ? `
+          <button class="btn btn-success" onclick="window.router.navigate('/project/ml-script?id=${project.project_id}')">ML Script Editor</button>
+          <button class="btn btn-warning" onclick="trainProjectModel('${project.project_id}')" ${!telemetryCount || telemetryCount < 10 ? 'disabled' : ''}>
+            Train Model ${!telemetryCount || telemetryCount < 10 ? '(Need 10+ samples)' : ''}
+          </button>
+          ${latestModel ? `<button class="btn btn-info" onclick="downloadProjectModel(${latestModel.id}, '${latestModel.filename}')">Download Model</button>` : ''}
+        ` : ''}
       </div>
 
       <div class="page-header">
@@ -57,3 +75,58 @@ export async function renderSmartLightDashboard(project) {
 
   window.updateActiveNav('projects');
 }
+
+window.trainProjectModel = async function(projectId) {
+  showNotification('Training model... This may take a minute', 'info');
+
+  try {
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/train-model`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ project_id: projectId })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error);
+    }
+
+    const result = await response.json();
+    showNotification('Model trained successfully! ' + result.training_samples + ' samples used', 'success');
+    window.location.reload();
+  } catch (error) {
+    showNotification('Error training model: ' + error.message, 'error');
+  }
+};
+
+window.downloadProjectModel = async function(modelId, filename) {
+  try {
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-model?id=${modelId}`;
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download model');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    showNotification('Model downloaded successfully', 'success');
+  } catch (error) {
+    showNotification('Error downloading model: ' + error.message, 'error');
+  }
+};

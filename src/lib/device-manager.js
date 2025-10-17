@@ -38,7 +38,7 @@ export function renderDeviceTable(project, devices) {
                   if (value === undefined || value === null) {
                     return '<td>N/A</td>';
                   }
-                  if (field.type === 'checkbox') {
+                  if (field.type === 'checkbox' || field.type === 'switch') {
                     return `<td>${value ? '✓' : '✗'}</td>`;
                   }
                   return `<td>${value}</td>`;
@@ -106,6 +106,16 @@ export function renderDeviceFormFields(customFields) {
           </div>
         `;
 
+      case 'switch':
+        return `
+          <div style="margin-bottom: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="custom_${field.name}" />
+              <span>${field.label}</span>
+            </label>
+          </div>
+        `;
+
       default:
         return '';
     }
@@ -119,7 +129,7 @@ export function getCustomDataFromForm(formData, customFields) {
     const fieldName = `custom_${field.name}`;
     const value = formData.get(fieldName);
 
-    if (field.type === 'checkbox') {
+    if (field.type === 'checkbox' || field.type === 'switch') {
       customData[field.name] = value === 'on';
     } else if (field.type === 'number' && value) {
       customData[field.name] = parseFloat(value);
@@ -141,7 +151,7 @@ export function setCustomDataInForm(customData, customFields) {
     const value = customData[field.name];
     if (value === undefined || value === null) return;
 
-    if (field.type === 'checkbox') {
+    if (field.type === 'checkbox' || field.type === 'switch') {
       input.checked = !!value;
     } else {
       input.value = value;

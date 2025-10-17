@@ -126,6 +126,12 @@ export async function renderRealtimeData(params) {
                 <button type="submit" class="btn btn-primary">Save Changes</button>
               </div>
             </form>
+            ${Object.keys(currentData).length > 0 ? `
+              <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary);">JSON Data Structure</h3>
+                <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.875rem; line-height: 1.5;"><code>${JSON.stringify(currentData, null, 2)}</code></pre>
+              </div>
+            ` : ''}
           ` : `
             <div class="empty-state">
               <div class="empty-state-icon">📊</div>
@@ -181,6 +187,10 @@ export async function renderRealtimeData(params) {
                   <div style="font-weight: 500;">${latestTelemetry.color_temp || 0} K</div>
                 </div>
               ` : ''}
+            </div>
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+              <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary);">JSON Data Structure</h3>
+              <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.875rem; line-height: 1.5;"><code>${JSON.stringify(latestTelemetry, null, 2)}</code></pre>
             </div>
           ` : `
             <div class="empty-state">
